@@ -1,23 +1,27 @@
 package baguchan.pizza_guy_movement.client;
 
-import baguchan.earthmobsmod.EarthMobsMod;
-import baguchan.earthmobsmod.entity.HyperRabbit;
-import baguchan.earthmobsmod.registry.ModEffects;
 import baguchan.pizza_guy_movement.IShadow;
 import baguchan.pizza_guy_movement.PizzaGuysMovement;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderLivingEvent;
+import net.minecraftforge.client.gui.overlay.ForgeGui;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -25,7 +29,7 @@ import static net.minecraft.client.renderer.entity.LivingEntityRenderer.getOverl
 
 @Mod.EventBusSubscriber(modid = PizzaGuysMovement.MODID, value = Dist.CLIENT)
 public class ClientEvents {
-
+    public static final ResourceLocation LOCATION = new ResourceLocation(PizzaGuysMovement.MODID, "textures/gui/icons.png");
 
     @SubscribeEvent
     public static void renderEvent(RenderLivingEvent.Post<LivingEntity, EntityModel<LivingEntity>> event) {
@@ -37,27 +41,27 @@ public class ClientEvents {
         float partialtick = event.getPartialTick();
 
 
-            if (entity.isSprinting() && entity instanceof IShadow shadow) {
-                posestack.pushPose();
-                boolean shouldSit = entity.isPassenger() && (entity.getVehicle() != null && entity.getVehicle().shouldRiderSit());
-                float f = Mth.rotLerp(partialtick, entity.yBodyRotO, entity.yBodyRot);
-                float f1 = Mth.rotLerp(partialtick, entity.yHeadRotO, entity.yHeadRot);
-                float f2 = f1 - f;
-                if (shouldSit && entity.getVehicle() instanceof LivingEntity) {
-                    LivingEntity livingentity = (LivingEntity) entity.getVehicle();
-                    f = Mth.rotLerp(partialtick, shadow.yBodyRot, livingentity.yBodyRot);
-                    f2 = f1 - f;
-                    float f3 = Mth.wrapDegrees(f2);
-                    if (f3 < -85.0F) {
-                        f3 = -85.0F;
-                    }
+        if (entity.isSprinting() && entity instanceof IShadow shadow && shadow.getPercentBoost() >= 0.5F) {
+            posestack.pushPose();
+            boolean shouldSit = entity.isPassenger() && (entity.getVehicle() != null && entity.getVehicle().shouldRiderSit());
+            float f = Mth.rotLerp(partialtick, entity.yBodyRotO, entity.yBodyRot);
+            float f1 = Mth.rotLerp(partialtick, entity.yHeadRotO, entity.yHeadRot);
+            float f2 = f1 - f;
+            if (shouldSit && entity.getVehicle() instanceof LivingEntity) {
+                LivingEntity livingentity = (LivingEntity) entity.getVehicle();
+                f = Mth.rotLerp(partialtick, shadow.getShadowRot().y, livingentity.yBodyRot);
+                f2 = f1 - f;
+                float f3 = Mth.wrapDegrees(f2);
+                if (f3 < -85.0F) {
+                    f3 = -85.0F;
+                }
 
-                    if (f3 >= 85.0F) {
-                        f3 = 85.0F;
-                    }
+                if (f3 >= 85.0F) {
+                    f3 = 85.0F;
+                }
 
-                    f = f1 - f3;
-                    if (f3 * f3 > 2500.0F) {
+                f = f1 - f3;
+                if (f3 * f3 > 2500.0F) {
                         f += f3 * 0.2F;
                     }
 
@@ -87,51 +91,51 @@ public class ClientEvents {
                 double ownerInZ = entity.zo + (entity.getZ() - entity.zo) * partialtick;
                 double deltaX = shadowX - ownerInX;
                 double deltaY = shadowY - ownerInY;
-                double deltaZ = shadowZ - ownerInZ;
-                double deltaX2 = shadowX2 - shadowX;
-                double deltaY2 = shadowY2 - shadowY;
-                double deltaZ2 = shadowZ2 - shadowZ;
+            double deltaZ = shadowZ - ownerInZ;
+            double deltaX2 = shadowX2 - shadowX;
+            double deltaY2 = shadowY2 - shadowY;
+            double deltaZ2 = shadowZ2 - shadowZ;
 
-                Pose pose = entity.getPose();
+            Pose pose = entity.getPose();
 
-                posestack.translate(deltaX, deltaY, deltaZ);
+            posestack.translate(deltaX, deltaY, deltaZ);
 
-                renderer.setupRotations(entity, posestack, f7, f, partialtick);
+            renderer.setupRotations(entity, posestack, f7, f, partialtick);
+            posestack.scale(-1.0F, -1.0F, 1.0F);
+            renderer.scale(entity, posestack, partialtick);
+            posestack.translate(0.0F, (double) -1.501F, 0.0F);
 
-                posestack.scale(-1.0F, -1.0F, 1.0F);
-                posestack.translate(0.0F, (double) -1.501F, 0.0F);
 
-
-                float f8 = 0.0F;
-                float f5 = 0.0F;
-                if (!shouldSit && entity.isAlive()) {
-                    f8 = Mth.lerp(partialtick, entity.animationSpeedOld, entity.animationSpeed);
-                    f5 = entity.animationPosition - entity.animationSpeed * (1.0F - partialtick);
-                    if (entity.isBaby()) {
-                        f5 *= 3.0F;
-                    }
-
-                    if (f8 > 1.0F) {
-                        f8 = 1.0F;
-                    }
+            float f8 = 0.0F;
+            float f5 = 0.0F;
+            if (!shouldSit && entity.isAlive()) {
+                f8 = Mth.lerp(partialtick, entity.animationSpeedOld, entity.animationSpeed);
+                f5 = entity.animationPosition - entity.animationSpeed * (1.0F - partialtick);
+                if (entity.isBaby()) {
+                    f5 *= 3.0F;
                 }
 
-                renderer.getModel().prepareMobModel(entity, f5, f8, partialtick);
-                renderer.getModel().setupAnim(entity, f5, f8, f7, f2, f6);
-                VertexConsumer vertexconsumer = buffer.getBuffer(RenderType.entityTranslucent(renderer.getTextureLocation(entity)));
-                int i = getOverlayCoords(entity, 0.0F);
-                renderer.getModel().renderToBuffer(posestack, vertexconsumer, light, i, 1.0F, 1.0F, 1.0F, (0.45F));
-                posestack.popPose();
-                posestack.pushPose();
-                if (shouldSit && entity.getVehicle() instanceof LivingEntity) {
-                    f = Mth.rotLerp(partialtick, ((IShadow) entity).getShadowRot2().y, ((IShadow) entity).getShadowRot().y);
-                    f2 = f1 - f;
-                    float f3 = Mth.wrapDegrees(f2);
-                    if (f3 < -85.0F) {
-                        f3 = -85.0F;
-                    }
+                if (f8 > 1.0F) {
+                    f8 = 1.0F;
+                }
+            }
 
-                    if (f3 >= 85.0F) {
+            renderer.getModel().prepareMobModel(entity, f5, f8, partialtick);
+            renderer.getModel().setupAnim(entity, f5, f8, f7, f2, f6);
+            VertexConsumer vertexconsumer = buffer.getBuffer(RenderType.entityTranslucent(renderer.getTextureLocation(entity)));
+            int i = getOverlayCoords(entity, 0.0F);
+            renderer.getModel().renderToBuffer(posestack, vertexconsumer, light, i, 1.0F, 0.3F, 0.3F, (0.45F));
+            posestack.popPose();
+            posestack.pushPose();
+            if (shouldSit && entity.getVehicle() instanceof LivingEntity) {
+                f = Mth.rotLerp(partialtick, ((IShadow) entity).getShadowRot2().y, ((IShadow) entity).getShadowRot().y);
+                f2 = f1 - f;
+                float f3 = Mth.wrapDegrees(f2);
+                if (f3 < -85.0F) {
+                    f3 = -85.0F;
+                }
+
+                if (f3 >= 85.0F) {
                         f3 = 85.0F;
                     }
 
@@ -151,23 +155,60 @@ public class ClientEvents {
                     }
                 }
 
-                posestack.translate(deltaX2, deltaY2, deltaZ2);
+            posestack.translate(deltaX2, deltaY2, deltaZ2);
 
-                renderer.setupRotations(entity, posestack, f7, f, partialtick);
-                posestack.scale(-1.0F, -1.0F, 1.0F);
-                posestack.translate(0.0F, (double) -1.501F, 0.0F);
+            renderer.setupRotations(entity, posestack, f7, f, partialtick);
+            posestack.scale(-1.0F, -1.0F, 1.0F);
+            renderer.scale(entity, posestack, partialtick);
+            posestack.translate(0.0F, (double) -1.501F, 0.0F);
 
 
-                renderer.getModel().prepareMobModel(entity, f5, f8, partialtick);
-                renderer.getModel().setupAnim(entity, f5, f8, f7, f2, f6);
-                renderer.getModel().renderToBuffer(posestack, vertexconsumer, light, i, 1.0F, 1.0F, 1.0F, 0.15F);
+            renderer.getModel().prepareMobModel(entity, f5, f8, partialtick);
+            renderer.getModel().setupAnim(entity, f5, f8, f7, f2, f6);
+            renderer.getModel().renderToBuffer(posestack, vertexconsumer, light, i, 0.3F, 1.0F, 0.3F, 0.15F);
 
-                posestack.popPose();
-            }
-
+            posestack.popPose();
+        }
     }
 
     protected static float getBob(LivingEntity p_115305_, float p_115306_) {
         return (float) p_115305_.tickCount + p_115306_;
+    }
+
+    @SubscribeEvent
+    public void renderHudEvent(RenderGuiOverlayEvent.Post event) {
+        PoseStack stack = event.getPoseStack();
+        Minecraft mc = Minecraft.getInstance();
+        Entity entity = mc.getCameraEntity();
+        int screenWidth = mc.getWindow().getGuiScaledWidth();
+        int screenHeight = mc.getWindow().getGuiScaledHeight() - ((ForgeGui) mc.gui).rightHeight;
+        if (entity != null && event.getOverlay() == VanillaGuiOverlay.FOOD_LEVEL.type()) {
+            stack.pushPose();
+            RenderSystem.enableBlend();
+            if (entity instanceof IShadow shadow) {
+                RenderSystem.setShader(GameRenderer::getPositionTexShader);
+                RenderSystem.setShaderTexture(0, LOCATION);
+                float l = shadow.getPercentBoost() * 40;
+                int j1 = screenWidth / 2 + 91;
+                int k1 = screenHeight;
+                for (int k6 = 0; k6 < 10; k6++) {
+                    int i7 = k1;
+                    int k7 = 16;
+                    int i8 = 0;
+                    int k8 = j1 - k6 * 8 - 9;
+                    mc.gui.blit(stack, k8, i7, 0 + i8 * 9, 0, 9, 9);
+                    if (k6 * 2 + 1 < l) {
+                        mc.gui.blit(stack, k8, i7, k7 + 36, 0, 9, 9);
+                    }
+                    if (k6 * 2 + 1 == l) {
+                        mc.gui.blit(stack, k8, i7, k7 + 45, 0, 9, 9);
+                    }
+                }
+            }
+            ;
+            RenderSystem.disableBlend();
+            ((ForgeGui) mc.gui).rightHeight += 10;
+            stack.popPose();
+        }
     }
 }

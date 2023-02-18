@@ -19,4 +19,6 @@ public interface IShadow {
     Vec3 getPrevShadow();
 
     Vec3 getPrevShadow2();
+
+    float getPercentBoost();
 }
