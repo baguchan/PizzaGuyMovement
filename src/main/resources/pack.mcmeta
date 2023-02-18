@@ -1,0 +1,8 @@
+{
+    "pack": {
+        "description": "pizza_guy_movement resources",
+        "pack_format": 12,
+        "forge:resource_pack_format": 12,
+        "forge:data_pack_format": 10
+    }
+}

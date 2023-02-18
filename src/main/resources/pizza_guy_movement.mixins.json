@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "baguchan.pizza_guy_movement.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "minVersion": "0.8",
+  "refmap": "pizza_guy_movement.refmap.json",
+  "mixins": [
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
