@@ -5,8 +5,7 @@
   "minVersion": "0.8",
   "refmap": "pizza_guy_movement.refmap.json",
   "mixins": [
-  ],
-  "client": [
+    "PlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

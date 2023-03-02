@@ -5,6 +5,7 @@ import baguchan.pizza_guy_movement.PizzaGuysMovement;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.renderer.GameRenderer;
@@ -41,7 +42,7 @@ public class ClientEvents {
         float partialtick = event.getPartialTick();
 
 
-        if (entity.isSprinting() && entity instanceof IShadow shadow && shadow.getPercentBoost() >= 0.5F) {
+        if (entity instanceof IShadow shadow && shadow.getPercentBoost() >= 0.5F) {
             posestack.pushPose();
             boolean shouldSit = entity.isPassenger() && (entity.getVehicle() != null && entity.getVehicle().shouldRiderSit());
             float f = Mth.rotLerp(partialtick, entity.yBodyRotO, entity.yBodyRot);
@@ -90,7 +91,7 @@ public class ClientEvents {
                 double ownerInY = entity.yo + (entity.getY() - entity.yo) * partialtick;
                 double ownerInZ = entity.zo + (entity.getZ() - entity.zo) * partialtick;
                 double deltaX = shadowX - ownerInX;
-                double deltaY = shadowY - ownerInY;
+            double deltaY = shadowY - ownerInY;
             double deltaZ = shadowZ - ownerInZ;
             double deltaX2 = shadowX2 - shadowX;
             double deltaY2 = shadowY2 - shadowY;
@@ -100,9 +101,12 @@ public class ClientEvents {
 
             posestack.translate(deltaX, deltaY, deltaZ);
 
-            renderer.setupRotations(entity, posestack, f7, f, partialtick);
+            if (!entity.hasPose(Pose.SLEEPING)) {
+                posestack.mulPose(Axis.YP.rotationDegrees(180.0F - f));
+            }
+            //renderer.setupRotations(entity, posestack, f7, f, partialtick);
             posestack.scale(-1.0F, -1.0F, 1.0F);
-            renderer.scale(entity, posestack, partialtick);
+            //renderer.scale(entity, posestack, partialtick);
             posestack.translate(0.0F, (double) -1.501F, 0.0F);
 
 
@@ -147,19 +151,21 @@ public class ClientEvents {
                     f2 = f1 - f;
                 }
 
-                if (entity.getPose() == Pose.SLEEPING) {
-                    Direction direction = entity.getBedOrientation();
-                    if (direction != null) {
-                        float f4 = entity.getEyeHeight(Pose.STANDING) - 0.1F;
-                        posestack.translate((double) ((float) (-direction.getStepX()) * f4), 0.0D, (double) ((float) (-direction.getStepZ()) * f4));
-                    }
+            if (entity.getPose() == Pose.SLEEPING) {
+                Direction direction = entity.getBedOrientation();
+                if (direction != null) {
+                    float f4 = entity.getEyeHeight(Pose.STANDING) - 0.1F;
+                    posestack.translate((double) ((float) (-direction.getStepX()) * f4), 0.0D, (double) ((float) (-direction.getStepZ()) * f4));
                 }
+            }
 
             posestack.translate(deltaX2, deltaY2, deltaZ2);
-
-            renderer.setupRotations(entity, posestack, f7, f, partialtick);
+            if (!entity.hasPose(Pose.SLEEPING)) {
+                posestack.mulPose(Axis.YP.rotationDegrees(180.0F - f));
+            }
+            //renderer.setupRotations(entity, posestack, f7, f, partialtick);
             posestack.scale(-1.0F, -1.0F, 1.0F);
-            renderer.scale(entity, posestack, partialtick);
+            //renderer.scale(entity, posestack, partialtick);
             posestack.translate(0.0F, (double) -1.501F, 0.0F);
 
 
@@ -176,7 +182,7 @@ public class ClientEvents {
     }
 
     @SubscribeEvent
-    public void renderHudEvent(RenderGuiOverlayEvent.Post event) {
+    public static void renderHudEvent(RenderGuiOverlayEvent.Post event) {
         PoseStack stack = event.getPoseStack();
         Minecraft mc = Minecraft.getInstance();
         Entity entity = mc.getCameraEntity();
@@ -188,20 +194,21 @@ public class ClientEvents {
             if (entity instanceof IShadow shadow) {
                 RenderSystem.setShader(GameRenderer::getPositionTexShader);
                 RenderSystem.setShaderTexture(0, LOCATION);
-                float l = shadow.getPercentBoost() * 40;
+                float l = shadow.getPercentBoost() * 20;
                 int j1 = screenWidth / 2 + 91;
                 int k1 = screenHeight;
                 for (int k6 = 0; k6 < 10; k6++) {
                     int i7 = k1;
-                    int k7 = 16;
+                    int k7 = shadow.getPercentBoost() >= 1 && entity.tickCount / 3 % 2 == 0 ? 18 : 0;
                     int i8 = 0;
                     int k8 = j1 - k6 * 8 - 9;
+                    if (shadow.getPercentBoost() >= 1.9F) {
+                        k7 += 9;
+                    }
+
                     mc.gui.blit(stack, k8, i7, 0 + i8 * 9, 0, 9, 9);
                     if (k6 * 2 + 1 < l) {
-                        mc.gui.blit(stack, k8, i7, k7 + 36, 0, 9, 9);
-                    }
-                    if (k6 * 2 + 1 == l) {
-                        mc.gui.blit(stack, k8, i7, k7 + 45, 0, 9, 9);
+                        mc.gui.blit(stack, k8, i7, k7 + 46, 0, 9, 9);
                     }
                 }
             }

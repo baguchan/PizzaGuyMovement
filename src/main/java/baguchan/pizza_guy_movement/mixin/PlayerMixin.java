@@ -3,28 +3,31 @@ package baguchan.pizza_guy_movement.mixin;
 import baguchan.pizza_guy_movement.IShadow;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EntitySelector;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.PowderSnowBlock;
 import net.minecraft.world.level.entity.EntityTypeTest;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 import java.util.UUID;
 
 @Mixin(Player.class)
 public abstract class PlayerMixin extends LivingEntity implements IShadow {
-    private static final UUID SPEED_MODIFIER_BOOST_UUID = UUID.fromString("a4be9598-fd19-8c8b-7e3d-142defd78b7c");
+    private static final UUID SPEED_MODIFIER_BOOST_UUID = UUID.fromString("4e73365d-036e-d940-a1dd-e7767c2e7e55");
     public Vec3 prevShadow = Vec3.ZERO;
 
     public Vec3 shadow = Vec3.ZERO;
@@ -44,13 +47,12 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
         super(p_20966_, p_20967_);
     }
 
-    @Inject(method = "aiStep", at = @At("HEAD"))
-    public void aiStep() {
+    @Inject(method = "aiStep", at = @At("TAIL"))
+    public void aiStep(CallbackInfo callbackInfo) {
         if (!this.level.isClientSide) {
             removeDashBoost(this);
         }
         if (this.level.isClientSide) {
-
             double elasticity = 0.25D;
             this.prevShadow = this.shadow;
             this.prevShadow2 = this.shadow2;
@@ -78,6 +80,64 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
         return percentBoost;
     }
 
+
+    // climing stuff like peppino
+    @Override
+    public boolean onClimbable() {
+        return super.onClimbable() || this.percentBoost > 0.2F && this.horizontalCollision;
+    }
+
+    private Vec3 handleOnClimbable(Vec3 p_21298_) {
+        if (this.onClimbable()) {
+            this.resetFallDistance();
+            float f = 0.15F;
+            double d0 = Mth.clamp(p_21298_.x, (double) -0.15F, (double) 0.15F);
+            double d1 = Mth.clamp(p_21298_.z, (double) -0.15F, (double) 0.15F);
+            double d2 = Math.max(p_21298_.y, (double) -0.15F);
+            if (d2 < 0.0D && !this.getFeetBlockState().isScaffolding(this) && this.isSuppressingSlidingDownLadder()) {
+                d2 = 0.0D;
+            }
+
+            p_21298_ = new Vec3(d0, d2, d1);
+        }
+
+        return p_21298_;
+    }
+
+    private float getFrictionInfluencedSpeed(float p_21331_) {
+        if (!this.isCreative() && !this.isSpectator()) {
+            if (!this.onGround) {
+                return this.getSpeed() * 0.98F;
+            }
+        }
+
+        return this.onGround ? this.getSpeed() * (0.21600002F / (p_21331_ * p_21331_ * p_21331_)) : this.flyingSpeed;
+    }
+
+    @Override
+    public Vec3 handleRelativeFrictionAndCalculateMovement(Vec3 p_21075_, float p_21076_) {
+        this.moveRelative(this.getFrictionInfluencedSpeed(p_21076_), p_21075_);
+        this.setDeltaMovement(this.handleOnClimbable(this.getDeltaMovement()));
+        this.move(MoverType.SELF, this.getDeltaMovement());
+        Vec3 vec3 = this.getDeltaMovement();
+        if ((this.horizontalCollision || this.jumping) && (this.onClimbable() || this.getFeetBlockState().is(Blocks.POWDER_SNOW) && PowderSnowBlock.canEntityWalkOnPowderSnow(this))) {
+            vec3 = new Vec3(vec3.x, 0.2D + 0.2F * percentBoost, vec3.z);
+        }
+
+        return vec3;
+    }
+
+    @Shadow
+    public abstract boolean isSpectator();
+
+    @Shadow
+    public abstract boolean isCreative();
+
+
+    /*
+     * Dashing Attack Stuff
+     */
+
     public AABB getAttackBoundingBox() {
         Vec3 vec3d = this.getViewVector(1.0F);
 
@@ -93,7 +153,7 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
                 for (int l = 0; l < list.size(); ++l) {
                     LivingEntity entity2 = list.get(l);
                     if (entity != entity2 && !entity.isAlliedTo(entity2)) {
-                        entity2.knockback(2.0D * percentBoost, entity2.getX() - entity.getX(), entity2.getZ() - entity.getZ());
+                        entity2.knockback(2.0D * percentBoost, entity.getX() - entity2.getX(), entity.getZ() - entity2.getZ());
                         entity2.hurt(DamageSource.mobAttack(entity), Mth.floor(8.0F * percentBoost));
                     }
                 }
@@ -112,11 +172,12 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
     }
 
     protected void tryAddDashBooster(LivingEntity entity) {
-        if (entity.isSprinting()) {
-            if (percentBoost <= 1) {
+        FluidState fluidstate = this.level.getFluidState(this.blockPosition());
+        if ((entity.isSprinting()) && entity.getPose() == Pose.STANDING) {
+            if (percentBoost <= 2) {
                 percentBoost += 0.01F;
             } else {
-                percentBoost = 1;
+                percentBoost = 2;
             }
 
         } else {
@@ -133,8 +194,8 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
                     return;
                 }
 
-                float f = 0.125F * percentBoost;
-                attributeinstance.addTransientModifier(new AttributeModifier(SPEED_MODIFIER_BOOST_UUID, "Spark Boost", (double) f, AttributeModifier.Operation.ADDITION));
+                float f = 0.2F * percentBoost;
+                attributeinstance.addTransientModifier(new AttributeModifier(SPEED_MODIFIER_BOOST_UUID, "Spark Boost", (double) f, AttributeModifier.Operation.MULTIPLY_TOTAL));
             }
         }
     }
@@ -174,7 +235,8 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
     @Override
     public void setPos(double p_20210_, double p_20211_, double p_20212_) {
         super.setPos(p_20210_, p_20211_, p_20212_);
-        if (this.shadow.distanceTo(this.position()) >= 30) {
+        //when shadow is too far or nothing reset
+        if (this.shadow == null || this.shadow2 == null || this.shadow.distanceTo(this.position()) >= 30) {
             this.shadow = new Vec3(p_20210_, p_20211_, p_20212_);
             this.shadow2 = new Vec3(p_20210_, p_20211_, p_20212_);
         }
