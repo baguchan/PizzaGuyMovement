@@ -7,6 +7,7 @@ import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Abilities;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -42,6 +44,10 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
     public Vec2 prevShadowRot2 = Vec2.ZERO;
 
     private float percentBoost = 0.0F;
+
+    @Shadow
+    @Final
+    private Abilities abilities;
 
     protected PlayerMixin(EntityType<? extends LivingEntity> p_20966_, Level p_20967_) {
         super(p_20966_, p_20967_);
@@ -105,12 +111,11 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
     }
 
     private float getFrictionInfluencedSpeed(float p_21331_) {
-        if (!this.isCreative() && !this.isSpectator()) {
-            if (!this.onGround) {
-                return this.getSpeed() * 0.98F;
-            }
+        if (!this.abilities.flying && !this.onGround && this.percentBoost > 0.5F) {
+            return this.getSpeed() * (0.21600002F / 0.98F);
+        } else if (this.abilities.flying) {
+            return this.flyingSpeed;
         }
-
         return this.onGround ? this.getSpeed() * (0.21600002F / (p_21331_ * p_21331_ * p_21331_)) : this.flyingSpeed;
     }
 
@@ -127,13 +132,6 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
         return vec3;
     }
 
-    @Shadow
-    public abstract boolean isSpectator();
-
-    @Shadow
-    public abstract boolean isCreative();
-
-
     /*
      * Dashing Attack Stuff
      */
@@ -141,8 +139,8 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
     public AABB getAttackBoundingBox() {
         Vec3 vec3d = this.getViewVector(1.0F);
 
-        Vec3 vec3 = new Vec3(this.getX() - (double) (this.getBbWidth() * 0.5D), this.getY(), this.getZ() - (double) (this.getBbWidth() * 0.5D));
-        Vec3 vec31 = new Vec3(this.getX() + (double) (this.getBbWidth() * 0.5D), this.getY() + this.getBbHeight(), this.getZ() + (double) (this.getBbWidth() * 0.5D));
+        Vec3 vec3 = new Vec3(this.getX() - (double) (this.getBbWidth() * 0.85D), this.getY(), this.getZ() - (double) (this.getBbWidth() * 0.85D));
+        Vec3 vec31 = new Vec3(this.getX() + (double) (this.getBbWidth() * 0.85D), this.getY() + this.getBbHeight(), this.getZ() + (double) (this.getBbWidth() * 0.85D));
         return new AABB(vec3, vec31).move(vec3d.x * 1.5D, vec3d.y * 1.5D, vec3d.z * 1.5D);
     }
 
