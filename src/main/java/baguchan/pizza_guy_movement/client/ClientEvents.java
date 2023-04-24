@@ -42,7 +42,7 @@ public class ClientEvents {
         float partialtick = event.getPartialTick();
 
 
-        if (entity instanceof IShadow shadow && shadow.getPercentBoost() >= 0.5F) {
+        if (entity instanceof IShadow shadow && shadow.getPercentBoost() >= 1.0F) {
             posestack.pushPose();
             boolean shouldSit = entity.isPassenger() && (entity.getVehicle() != null && entity.getVehicle().shouldRiderSit());
             float f = Mth.rotLerp(partialtick, entity.yBodyRotO, entity.yBodyRot);
@@ -113,8 +113,8 @@ public class ClientEvents {
             float f8 = 0.0F;
             float f5 = 0.0F;
             if (!shouldSit && entity.isAlive()) {
-                f8 = Mth.lerp(partialtick, entity.animationSpeedOld, entity.animationSpeed);
-                f5 = entity.animationPosition - entity.animationSpeed * (1.0F - partialtick);
+                f8 = entity.walkAnimation.speed(partialtick);
+                f5 = entity.walkAnimation.position(partialtick);
                 if (entity.isBaby()) {
                     f5 *= 3.0F;
                 }

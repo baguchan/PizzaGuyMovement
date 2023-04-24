@@ -2,7 +2,6 @@ package baguchan.pizza_guy_movement.mixin;
 
 import baguchan.pizza_guy_movement.IShadow;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -13,7 +12,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PowderSnowBlock;
 import net.minecraft.world.level.entity.EntityTypeTest;
-import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
@@ -114,9 +112,9 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
         if (!this.abilities.flying && !this.onGround && this.percentBoost > 0.5F) {
             return this.getSpeed() * (0.21600002F / 0.98F);
         } else if (this.abilities.flying) {
-            return this.flyingSpeed;
+            return this.getFlyingSpeed();
         }
-        return this.onGround ? this.getSpeed() * (0.21600002F / (p_21331_ * p_21331_ * p_21331_)) : this.flyingSpeed;
+        return this.onGround ? this.getSpeed() * (0.21600002F / (p_21331_ * p_21331_ * p_21331_)) : this.getFlyingSpeed();
     }
 
     @Override
@@ -152,7 +150,7 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
                     LivingEntity entity2 = list.get(l);
                     if (entity != entity2 && !entity.isAlliedTo(entity2)) {
                         entity2.knockback(2.0D * percentBoost, entity.getX() - entity2.getX(), entity.getZ() - entity2.getZ());
-                        entity2.hurt(DamageSource.mobAttack(entity), Mth.floor(8.0F * percentBoost));
+                        entity2.hurt(entity.damageSources().mobAttack(entity2), Mth.floor(8.0F * percentBoost));
                     }
                 }
             }
@@ -170,21 +168,32 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
     }
 
     protected void tryAddDashBooster(LivingEntity entity) {
-        FluidState fluidstate = this.level.getFluidState(this.blockPosition());
         if ((entity.isSprinting()) && entity.getPose() == Pose.STANDING) {
-            if (percentBoost <= 2) {
+            if (percentBoost <= 1) {
                 percentBoost += 0.01F;
+            } else if (percentBoost <= 2) {
+                percentBoost += 0.005F;
             } else {
                 percentBoost = 2;
             }
-
-        } else {
+            entity.walkAnimation.setSpeed(percentBoost + 1.0F);
+        } else if (!this.horizontalCollision) {
             if (percentBoost >= 0) {
                 percentBoost -= 0.1F;
             } else {
                 percentBoost = 0;
             }
+        } else {
+            if (!this.onGround && this.verticalCollision) {
+                percentBoost = 0;
+            } else {
+                if (percentBoost <= 1) {
+                    percentBoost += 0.01F;
+                }
+                entity.walkAnimation.setSpeed(percentBoost + 1.0F);
+            }
         }
+
         if (percentBoost > 0) {
             if (!entity.level.isClientSide) {
                 AttributeInstance attributeinstance = entity.getAttribute(Attributes.MOVEMENT_SPEED);
@@ -192,7 +201,7 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
                     return;
                 }
 
-                float f = 0.2F * percentBoost;
+                float f = 0.325F * percentBoost;
                 attributeinstance.addTransientModifier(new AttributeModifier(SPEED_MODIFIER_BOOST_UUID, "Spark Boost", (double) f, AttributeModifier.Operation.MULTIPLY_TOTAL));
             }
         }
@@ -238,15 +247,5 @@ public abstract class PlayerMixin extends LivingEntity implements IShadow {
             this.shadow = new Vec3(p_20210_, p_20211_, p_20212_);
             this.shadow2 = new Vec3(p_20210_, p_20211_, p_20212_);
         }
-    }
-
-    @Override
-    protected void setRot(float p_19916_, float p_19917_) {
-        super.setRot(p_19916_, p_19917_);
-    }
-
-    @Override
-    public boolean hurt(DamageSource p_21016_, float p_21017_) {
-        return super.hurt(p_21016_, p_21017_);
     }
 }
